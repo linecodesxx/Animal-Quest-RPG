@@ -18,7 +18,7 @@ datasource db {
 model User {
   id          Int        @id @default(autoincrement())
   telegramId  String?     @unique
-  username    String?
+  username    String?     @unique
   createdAt   DateTime   @default(now())
   characters  Character[]
   battles     Battle[]   @relation("UserBattles")

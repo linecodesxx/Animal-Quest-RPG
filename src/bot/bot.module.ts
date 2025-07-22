@@ -5,12 +5,14 @@ import { TelegrafModule, TelegrafModuleOptions } from 'nestjs-telegraf';
 import { BotUpdate } from './bot.update';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AnimalSpawnModule } from 'src/animal-spawn.service/animal-spawn.module';
+import { InventoryModule } from 'src/inventory/inventory.module';
 
 @Module({
   imports: [
     ConfigModule,
     AnimalSpawnModule,
     UserModule,
+    InventoryModule,
     TelegrafModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

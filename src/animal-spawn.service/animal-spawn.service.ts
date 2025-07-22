@@ -1,22 +1,19 @@
-import { Ctx } from 'nestjs-telegraf';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { BotService } from 'src/bot/bot.service';
-import { Context } from 'telegraf';
-import {User} from '../../generated/prisma'
 
 @Injectable()
 export class AnimalSpawnService {
   private readonly logger = new Logger(AnimalSpawnService.name);
-    private msg;
+  private msg;
   constructor(
     private prisma: PrismaService,
-    private botService: BotService
+    private botService: BotService,
   ) {}
 
   @Cron(CronExpression.EVERY_5_MINUTES)
-  async spawnGlobalAnimal(@Ctx() ctx: Context) {
+  async spawnGlobalAnimal() {
     this.logger.debug('Starting global animal spawn...');
 
     // 1. Clear expired spawns
@@ -46,10 +43,13 @@ export class AnimalSpawnService {
       });
       this.logger.log(`Spawned ${randomAnimal.type} until ${despawnAt}`);
 
-      this.msg = "Заспавнилось новое животное! Скорее проверь /find_pet \n " +
-      "Для отписки от уведомлений о спавне животных - /unsubscribe"
-      await this.botService.sendMessageToUsers(this.msg, {notifyOnAnimalSpawn: true,})
-        } catch (error) {
+      this.msg =
+        'Заспавнилось новое животное! Скорее проверь /find_pet \n ' +
+        'Для отписки от уведомлений о спавне животных - /unsubscribe';
+      await this.botService.sendMessageToUsers(this.msg, {
+        notifyOnAnimalSpawn: true,
+      });
+    } catch (error) {
       this.logger.error('Failed to spawn animal', error);
     }
   }

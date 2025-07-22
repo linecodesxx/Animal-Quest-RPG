@@ -17,42 +17,50 @@ export class UserService {
       },
     });
   }
-  async findUsersWithTelegramIds(filter?: Partial<{ notifyOnAnimalSpawn: boolean }>) {
-  return this.prisma.user.findMany({
-    where: {
-      telegramId: {
-        not: null,
+  async findUsersWithTelegramIds(
+    filter?: Partial<{ notifyOnAnimalSpawn: boolean }>,
+  ) {
+    return this.prisma.user.findMany({
+      where: {
+        telegramId: {
+          not: null,
+        },
+        ...(filter?.notifyOnAnimalSpawn !== undefined
+          ? { notifyOnAnimalSpawn: filter.notifyOnAnimalSpawn }
+          : {}),
       },
-      ...(filter?.notifyOnAnimalSpawn !== undefined
-        ? { notifyOnAnimalSpawn: filter.notifyOnAnimalSpawn }
-        : {}),
-    },
-  });
-}
+    });
+  }
 
-  async getUserCharacterByTelegramId(telegramId: string){
+  async getUserCharacterByTelegramId(telegramId: string) {
     const user = await this.prisma.user.findUnique({
-      where: {telegramId},
+      where: { telegramId },
       include: {
-        characters:{
-          include:{
+        characters: {
+          include: {
             inventory: true,
           },
-          orderBy: {createdAt: 'desc' },
-          take: 1
-        }
-      }
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
     });
     return user?.characters[0] || null;
   }
 
   async updateByTelegramId(telegramId: number, data: Partial<User>) {
-  return this.prisma.user.updateMany({
-    where: {
-      telegramId: String(telegramId),
-    },
-    data,
-  });
-}
+    return this.prisma.user.updateMany({
+      where: {
+        telegramId: String(telegramId),
+      },
+      data,
+    });
+  }
 
+  async getUserByUsername(username: string) {
+    return await this.prisma.user.findUnique({
+      where: { username },
+      include: { characters: true },
+    });
+  }
 }

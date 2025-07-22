@@ -1,7 +1,7 @@
 import { Context, Telegraf } from 'telegraf';
 import { UserService } from './../user/user.service';
 import { Injectable } from '@nestjs/common';
-import { InjectBot } from 'nestjs-telegraf';
+import { InjectBot, Ctx } from 'nestjs-telegraf';
 
 @Injectable()
 export class BotService {
@@ -23,21 +23,31 @@ export class BotService {
   }
 
   async sendMessageToUsers(
-  message: string,
-  filter?: Partial<{ notifyOnAnimalSpawn: boolean }>
-) {
-  const users = await this.userService.findUsersWithTelegramIds(filter);
+    message: string,
+    filter?: Partial<{ notifyOnAnimalSpawn: boolean }>,
+  ) {
+    const users = await this.userService.findUsersWithTelegramIds(filter);
 
-  for (const user of users) {
-    try {
-      if (user.telegramId) {
-        await this.bot.telegram.sendMessage(user.telegramId, message);
+    for (const user of users) {
+      try {
+        if (user.telegramId) {
+          await this.bot.telegram.sendMessage(user.telegramId, message);
+        }
+      } catch (error) {
+        console.error(
+          `❌ Ошибка при отправке пользователю ${user.telegramId}:`,
+          error,
+        );
       }
-    } catch (error) {
-      console.error(`❌ Ошибка при отправке пользователю ${user.telegramId}:`, error);
     }
   }
-}
 
+  async sendMessageToTelegramId(telegramId: string, message: string) {
+  try {
+    await this.bot.telegram.sendMessage(telegramId, message);
+  } catch (error) {
+    console.error(`❌ Ошибка при отправке ${telegramId}:`, error);
+  }
+}
 
 }
