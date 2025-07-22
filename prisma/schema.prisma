@@ -1,0 +1,114 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User (Пользователь)
+model User {
+  id          Int        @id @default(autoincrement())
+  telegramId  String?     @unique
+  username    String?
+  createdAt   DateTime   @default(now())
+  characters  Character[]
+  battles     Battle[]   @relation("UserBattles")
+  notifyOnAnimalSpawn Boolean @default(true)
+}
+
+model Character {
+  id         Int           @id @default(autoincrement())
+  name       String
+  level      Int           @default(1)
+  exp        Int           @default(0)
+  health     Int           @default(100)
+  user       User          @relation(fields: [userId], references: [id])
+  userId     Int
+  inventory  InventoryItem[]
+  quests     QuestProgress[]
+  battles    Battle[]      @relation("CharacterBattles")
+  createdAt  DateTime      @default(now())
+
+  AnimalSpawn AnimalSpawn[]
+}
+
+model Quest {
+  id          Int              @id @default(autoincrement())
+  title       String
+  description String
+  rewardExp   Int
+  rewardItem  String?
+  createdAt   DateTime         @default(now())
+  progresses  QuestProgress[]
+}
+
+model QuestProgress {
+  id          Int        @id @default(autoincrement())
+  character   Character  @relation(fields: [characterId], references: [id])
+  characterId Int
+  quest       Quest      @relation(fields: [questId], references: [id])
+  questId     Int
+  status      QuestStatus
+  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime   @default(now())
+}
+
+enum QuestStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model InventoryItem {
+  id          Int        @id @default(autoincrement())
+  name        String
+  quantity    Int        @default(1)
+  character   Character  @relation(fields: [characterId], references: [id])
+  characterId Int
+}
+
+model Battle {
+  id             Int        @id @default(autoincrement())
+  character      Character  @relation("CharacterBattles", fields: [characterId], references: [id])
+  characterId    Int
+  user           User       @relation("UserBattles", fields: [userId], references: [id])
+  userId         Int
+  enemy          String
+  result         BattleResult
+  createdAt      DateTime   @default(now())
+}
+
+enum BattleResult {
+  WIN
+  LOSE
+  ESCAPED
+}
+
+
+model Animal {
+  id        Int       @id @default(autoincrement())
+  type      String    @unique
+  rarity    String
+  spawns    AnimalSpawn[]
+  createdAt DateTime  @default(now())
+}
+
+model AnimalSpawn {
+  id          Int       @id @default(autoincrement())
+  animal      Animal    @relation(fields: [animalId], references: [id])
+  animalId    Int
+  spawnedAt   DateTime  @default(now())
+  despawnAt   DateTime
+  isCaught    Boolean   @default(false)
+  caughtBy    Character? @relation(fields: [caughtById], references: [id])
+  caughtById  Int?
+}
