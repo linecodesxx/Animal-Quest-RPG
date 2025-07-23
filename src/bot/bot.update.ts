@@ -4,6 +4,8 @@ import { BotService } from './bot.service';
 import { Context } from 'telegraf';
 import { AnimalSpawnService } from 'src/animal-spawn.service/animal-spawn.service';
 import { InventoryService } from 'src/inventory/inventory.service';
+import { AdminGuard } from 'src/common/guards/admin.guard';
+import { UseGuards } from '@nestjs/common';
 
 @Update()
 export class BotUpdate {
@@ -125,6 +127,7 @@ export class BotUpdate {
     );
   }
 
+  @UseGuards(AdminGuard)
   @Command('news')
   async news(@Ctx() ctx: Context) {
     const message = ctx.message;
@@ -171,6 +174,7 @@ export class BotUpdate {
     }
   }
 
+  @UseGuards(AdminGuard)
   @Command('give')
   async giveItem(@Ctx() ctx: Context) {
     const message = ctx.message;
@@ -215,6 +219,7 @@ export class BotUpdate {
     );
   }
 
+  @UseGuards(AdminGuard)
   @Command('clear_inventory')
   async clearInventory(@Ctx() ctx: Context) {
     const message = ctx.message;

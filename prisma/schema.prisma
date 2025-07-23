@@ -14,6 +14,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role{
+  USER
+  ADMIN
+}
+
+
 // User (Пользователь)
 model User {
   id          Int        @id @default(autoincrement())
@@ -22,6 +28,7 @@ model User {
   createdAt   DateTime   @default(now())
   characters  Character[]
   battles     Battle[]   @relation("UserBattles")
+  role        Role       @default(USER)
   notifyOnAnimalSpawn Boolean @default(true)
 }
 

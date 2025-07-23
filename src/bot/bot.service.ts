@@ -1,7 +1,7 @@
 import { Context, Telegraf } from 'telegraf';
 import { UserService } from './../user/user.service';
 import { Injectable } from '@nestjs/common';
-import { InjectBot, Ctx } from 'nestjs-telegraf';
+import { InjectBot } from 'nestjs-telegraf';
 
 @Injectable()
 export class BotService {
@@ -43,11 +43,10 @@ export class BotService {
   }
 
   async sendMessageToTelegramId(telegramId: string, message: string) {
-  try {
-    await this.bot.telegram.sendMessage(telegramId, message);
-  } catch (error) {
-    console.error(`❌ Ошибка при отправке ${telegramId}:`, error);
+    try {
+      await this.bot.telegram.sendMessage(telegramId, message);
+    } catch (error) {
+      console.error(`❌ Ошибка при отправке ${telegramId}:`, error);
+    }
   }
-}
-
 }

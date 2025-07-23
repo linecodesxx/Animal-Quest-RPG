@@ -21,11 +21,11 @@ import { InventoryModule } from 'src/inventory/inventory.module';
         if (!token) {
           throw new Error('BOT_TOKEN not defined in environment');
         }
-        return { token, launchOptions:{dropPendingUpdates:true} };
+        return { token, launchOptions: { dropPendingUpdates: true } };
       },
     }),
   ],
   providers: [BotService, BotUpdate],
-  exports: [BotService]
+  exports: [BotService],
 })
 export class BotModule {}
