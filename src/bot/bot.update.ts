@@ -1,5 +1,5 @@
 import { UserService } from './../user/user.service';
-import { Action, Command, Ctx, On, Start, Update } from 'nestjs-telegraf';
+import { Command, Ctx, On, Start, Update } from 'nestjs-telegraf';
 import { BotService } from './bot.service';
 import { Context } from 'telegraf';
 import { AnimalSpawnService } from 'src/animal-spawn.service/animal-spawn.service';
@@ -7,6 +7,7 @@ import { InventoryService } from 'src/inventory/inventory.service';
 import { AdminGuard } from 'src/common/guards/admin.guard';
 import { UseGuards } from '@nestjs/common';
 import { ItemType } from 'generated/prisma';
+import { BotHandlers } from './handlers/bot.handlers';
 
 @Update()
 export class BotUpdate {
@@ -15,6 +16,7 @@ export class BotUpdate {
     private animalSpawnService: AnimalSpawnService,
     private userService: UserService,
     private inventoryService: InventoryService,
+    private botHandlers: BotHandlers,
   ) {}
 
   @Start()
@@ -259,7 +261,6 @@ export class BotUpdate {
 
   @On('callback_query')
   async handleCallbackQuery(@Ctx() ctx: Context) {
-    // Safely extract data only if callbackQuery is of type CallbackQueryData
     let data: string | undefined;
     if (
       ctx.callbackQuery &&
@@ -275,142 +276,24 @@ export class BotUpdate {
     }
 
     if (data.startsWith('catch_')) {
-      const spawnId = parseInt(data.split('_')[1]);
-      const user = await this.botService.findOrCreateUser(ctx);
-
-      if (!user) {
-        await ctx.answerCbQuery('Ошибка пользователя');
-        return;
-      }
-
-      const result = await this.animalSpawnService.catchAnimal(
-        user.id,
-        spawnId,
-      );
-      await ctx.editMessageText(result);
-    } else if (data.startsWith('item:')) {
-      if (!ctx.from) return;
-
-      const telegramId = String(ctx.from.id);
-      const character =
-        await this.userService.getUserCharacterByTelegramId(telegramId);
-
-      if (!character) {
-        await ctx.answerCbQuery('❌ Персонаж не найден');
-        return;
-      }
-
-      const itemId = parseInt(data.split(':')[1]);
-      const item = await this.inventoryService.getItemById(
-        itemId,
-        character.id,
-      );
-
-      if (!item) {
-        await ctx.answerCbQuery('❌ Предмет не найден');
-        return;
-      }
-
-      try {
-        await ctx.editMessageText(`🔍 ${item.name} ×${item.quantity}`, {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: '🥄 Использовать', callback_data: `use:${item.id}` },
-                { text: '🗑️ Выбросить', callback_data: `drop:${item.id}` },
-              ],
-              [{ text: '🔙 Назад', callback_data: 'inventory:back' }],
-            ],
-          },
-        });
-        await ctx.answerCbQuery();
-      } catch (e) {
-        console.error('[ERROR] editMessageText failed:', e);
-        await ctx.answerCbQuery('⚠️ Ошибка при обновлении сообщения');
-      }
-    } else if (data.startsWith('use:')) {
-      try {
-        const itemId = parseInt(data.split(':')[1]);
-        // await this.inventoryService.useItem(itemId); // твоя реализация
-
-        await ctx.answerCbQuery('🍽️ Использовано!');
-        await this.handleBackToInventory(ctx); // 👈 возвращаем в инвентарь
-      } catch (error) {
-        console.error('Ошибка при useItem:', error);
-        await ctx.answerCbQuery('⚠️ Ошибка использования.');
-      }
-    } else if (data.startsWith('drop:')) {
-      try {
-        const itemId = parseInt(data.split(':')[1]);
-        // await this.inventoryService.dropItem(itemId); // твоя реализация
-
-        await ctx.answerCbQuery('🗑️ Выброшено!');
-        await this.handleBackToInventory(ctx); // 👈 возврат
-      } catch (error) {
-        console.error('Ошибка при dropItem:', error);
-        await ctx.answerCbQuery('⚠️ Ошибка при выбрасывании.');
-      }
-    } else if (data.startsWith('inventory:back')) {
-      try {
-        const telegramId = String(ctx.from?.id);
-        const character =
-          await this.userService.getUserCharacterByTelegramId(telegramId);
-        if (!character) {
-          await ctx.answerCbQuery('⚠️ Персонаж не найден');
-          return;
-        }
-
-        const items = await this.inventoryService.getInventory(character.id);
-        if (!items.length) {
-          await ctx.editMessageText('🎒 Ваш инвентарь пуст.');
-          return;
-        }
-
-        const keyboard = items.map((item) => [
-          {
-            text: `${item.name} ×${item.quantity}`,
-            callback_data: `item:${item.id}`,
-          },
-        ]);
-
-        await ctx.editMessageText('🎒 Ваш инвентарь:', {
-          reply_markup: {
-            inline_keyboard: keyboard,
-          },
-        });
-        await ctx.answerCbQuery(); // тоже очищаем "загрузку"
-      } catch (error) {
-        console.error('Ошибка при возврате в инвентарь:', error);
-        await ctx.answerCbQuery('⚠️ Ошибка при возврате в инвентарь.');
-      }
-    }
-  }
-
-  // Добавляем метод handleBackToInventory
-  async handleBackToInventory(ctx: Context) {
-    const telegramId = String(ctx.from?.id);
-    const character =
-      await this.userService.getUserCharacterByTelegramId(telegramId);
-    if (!character) {
-      await ctx.editMessageText('⚠️ Персонаж не найден');
+      await this.botHandlers.handleCatchAnimal(ctx, data);
       return;
     }
-    const items = await this.inventoryService.getInventory(character.id);
-    if (!items.length) {
-      await ctx.editMessageText('🎒 Ваш инвентарь пуст.');
+    if (data.startsWith('item:')) {
+      await this.botHandlers.handleShowItem(ctx, data);
       return;
     }
-    const keyboard = items.map((item) => [
-      {
-        text: `${item.name} ×${item.quantity}`,
-        callback_data: `item:${item.id}`,
-      },
-    ]);
-    await ctx.editMessageText('🎒 Ваш инвентарь:', {
-      reply_markup: {
-        inline_keyboard: keyboard,
-      },
-    });
-    await ctx.answerCbQuery();
+    if (data.startsWith('use:')) {
+      await this.botHandlers.handleUseItem(ctx, data);
+      return;
+    }
+    if (data.startsWith('drop:')) {
+      await this.botHandlers.handleDropItem(ctx, data);
+      return;
+    }
+    if (data.startsWith('inventory:back')) {
+      await this.botHandlers.handleBackToInventory(ctx);
+      return;
+    }
   }
 }
