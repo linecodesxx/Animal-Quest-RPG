@@ -1,11 +1,12 @@
 import { UserService } from './../user/user.service';
-import { Command, Ctx, On, Start, Update } from 'nestjs-telegraf';
+import { Action, Command, Ctx, On, Start, Update } from 'nestjs-telegraf';
 import { BotService } from './bot.service';
 import { Context } from 'telegraf';
 import { AnimalSpawnService } from 'src/animal-spawn.service/animal-spawn.service';
 import { InventoryService } from 'src/inventory/inventory.service';
 import { AdminGuard } from 'src/common/guards/admin.guard';
 import { UseGuards } from '@nestjs/common';
+import { ItemType } from 'generated/prisma';
 
 @Update()
 export class BotUpdate {
@@ -80,23 +81,6 @@ export class BotUpdate {
     }
   }
 
-  @On('callback_query')
-  async handleCatch(@Ctx() ctx: Context) {
-    const data = (ctx.callbackQuery as any).data;
-    if (!data.startsWith('catch_')) return;
-
-    const spawnId = parseInt(data.split('_')[1]);
-    const user = await this.botService.findOrCreateUser(ctx);
-
-    if (!user) {
-      await ctx.answerCbQuery('Ошибка пользователя');
-      return;
-    }
-
-    const result = await this.animalSpawnService.catchAnimal(user.id, spawnId);
-    await ctx.editMessageText(result);
-  }
-
   @Command('unsubscribe')
   async unsubscribe(@Ctx() ctx: Context) {
     const telegramId = ctx.from?.id;
@@ -148,6 +132,7 @@ export class BotUpdate {
     await this.botService.sendMessageToUsers(`📢 Объявление:\n${announcement}`);
   }
 
+  //#region inventory red
   @Command('inventory')
   async getInv(@Ctx() ctx: Context) {
     if (!ctx.from) return;
@@ -161,18 +146,31 @@ export class BotUpdate {
       );
       return;
     }
+
     const items = await this.inventoryService.getInventory(character.id);
 
     const formatted = items
       .map((item, index) => `${index + 1}. ${item.name} ×${item.quantity}`)
       .join('\n');
 
+    const keyboard = items.map((item) => [
+      {
+        text: `${item.name} x${item.quantity}`,
+        callback_data: `item:${item.id}`,
+      },
+    ]);
     if (formatted.length === 0) {
       await ctx.reply('🎒 Ваш инвентарь пуст...');
     } else {
-      await ctx.reply(`🎒 Ваш инвентарь:\n${formatted}`);
+      await ctx.reply(`🎒 Ваш инвентарь:\n${formatted}`, {
+        reply_markup: {
+          inline_keyboard: keyboard,
+        },
+      });
     }
   }
+
+  //#endregion
 
   @UseGuards(AdminGuard)
   @Command('give')
@@ -181,9 +179,10 @@ export class BotUpdate {
     if (!message || !('text' in message)) return;
 
     const args = message.text.split(' ').slice(1); // ['@username', 'hamster']
-    const [item, usernameArg] = args;
+    const [userTypeRaw, item, usernameArg] = args;
+    const userType = userTypeRaw as ItemType;
 
-    if (!item || !usernameArg) {
+    if (!item || !userType || !usernameArg) {
       await ctx.reply('Неверный формат. Используй: /give item @username');
       return;
     }
@@ -208,6 +207,7 @@ export class BotUpdate {
 
     await this.inventoryService.addNewItemToInventory(
       item,
+      userType,
       1,
       targetCharacter.id,
     );
@@ -255,5 +255,162 @@ export class BotUpdate {
       `Ваш инвентарь был очищен администратором... (；＿；)`,
       targetUser.telegramId!, // убедись, что telegramId точно не null
     );
+  }
+
+  @On('callback_query')
+  async handleCallbackQuery(@Ctx() ctx: Context) {
+    // Safely extract data only if callbackQuery is of type CallbackQueryData
+    let data: string | undefined;
+    if (
+      ctx.callbackQuery &&
+      'data' in ctx.callbackQuery &&
+      typeof (ctx.callbackQuery as any).data === 'string'
+    ) {
+      data = (ctx.callbackQuery as { data: string }).data;
+    }
+
+    if (!data) {
+      await ctx.answerCbQuery('Некорректный callback_query');
+      return;
+    }
+
+    if (data.startsWith('catch_')) {
+      const spawnId = parseInt(data.split('_')[1]);
+      const user = await this.botService.findOrCreateUser(ctx);
+
+      if (!user) {
+        await ctx.answerCbQuery('Ошибка пользователя');
+        return;
+      }
+
+      const result = await this.animalSpawnService.catchAnimal(
+        user.id,
+        spawnId,
+      );
+      await ctx.editMessageText(result);
+    } else if (data.startsWith('item:')) {
+      if (!ctx.from) return;
+
+      const telegramId = String(ctx.from.id);
+      const character =
+        await this.userService.getUserCharacterByTelegramId(telegramId);
+
+      if (!character) {
+        await ctx.answerCbQuery('❌ Персонаж не найден');
+        return;
+      }
+
+      const itemId = parseInt(data.split(':')[1]);
+      const item = await this.inventoryService.getItemById(
+        itemId,
+        character.id,
+      );
+
+      if (!item) {
+        await ctx.answerCbQuery('❌ Предмет не найден');
+        return;
+      }
+
+      try {
+        await ctx.editMessageText(`🔍 ${item.name} ×${item.quantity}`, {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '🥄 Использовать', callback_data: `use:${item.id}` },
+                { text: '🗑️ Выбросить', callback_data: `drop:${item.id}` },
+              ],
+              [{ text: '🔙 Назад', callback_data: 'inventory:back' }],
+            ],
+          },
+        });
+        await ctx.answerCbQuery();
+      } catch (e) {
+        console.error('[ERROR] editMessageText failed:', e);
+        await ctx.answerCbQuery('⚠️ Ошибка при обновлении сообщения');
+      }
+    } else if (data.startsWith('use:')) {
+      try {
+        const itemId = parseInt(data.split(':')[1]);
+        // await this.inventoryService.useItem(itemId); // твоя реализация
+
+        await ctx.answerCbQuery('🍽️ Использовано!');
+        await this.handleBackToInventory(ctx); // 👈 возвращаем в инвентарь
+      } catch (error) {
+        console.error('Ошибка при useItem:', error);
+        await ctx.answerCbQuery('⚠️ Ошибка использования.');
+      }
+    } else if (data.startsWith('drop:')) {
+      try {
+        const itemId = parseInt(data.split(':')[1]);
+        // await this.inventoryService.dropItem(itemId); // твоя реализация
+
+        await ctx.answerCbQuery('🗑️ Выброшено!');
+        await this.handleBackToInventory(ctx); // 👈 возврат
+      } catch (error) {
+        console.error('Ошибка при dropItem:', error);
+        await ctx.answerCbQuery('⚠️ Ошибка при выбрасывании.');
+      }
+    } else if (data.startsWith('inventory:back')) {
+      try {
+        const telegramId = String(ctx.from?.id);
+        const character =
+          await this.userService.getUserCharacterByTelegramId(telegramId);
+        if (!character) {
+          await ctx.answerCbQuery('⚠️ Персонаж не найден');
+          return;
+        }
+
+        const items = await this.inventoryService.getInventory(character.id);
+        if (!items.length) {
+          await ctx.editMessageText('🎒 Ваш инвентарь пуст.');
+          return;
+        }
+
+        const keyboard = items.map((item) => [
+          {
+            text: `${item.name} ×${item.quantity}`,
+            callback_data: `item:${item.id}`,
+          },
+        ]);
+
+        await ctx.editMessageText('🎒 Ваш инвентарь:', {
+          reply_markup: {
+            inline_keyboard: keyboard,
+          },
+        });
+        await ctx.answerCbQuery(); // тоже очищаем "загрузку"
+      } catch (error) {
+        console.error('Ошибка при возврате в инвентарь:', error);
+        await ctx.answerCbQuery('⚠️ Ошибка при возврате в инвентарь.');
+      }
+    }
+  }
+
+  // Добавляем метод handleBackToInventory
+  async handleBackToInventory(ctx: Context) {
+    const telegramId = String(ctx.from?.id);
+    const character =
+      await this.userService.getUserCharacterByTelegramId(telegramId);
+    if (!character) {
+      await ctx.editMessageText('⚠️ Персонаж не найден');
+      return;
+    }
+    const items = await this.inventoryService.getInventory(character.id);
+    if (!items.length) {
+      await ctx.editMessageText('🎒 Ваш инвентарь пуст.');
+      return;
+    }
+    const keyboard = items.map((item) => [
+      {
+        text: `${item.name} ×${item.quantity}`,
+        callback_data: `item:${item.id}`,
+      },
+    ]);
+    await ctx.editMessageText('🎒 Ваш инвентарь:', {
+      reply_markup: {
+        inline_keyboard: keyboard,
+      },
+    });
+    await ctx.answerCbQuery();
   }
 }

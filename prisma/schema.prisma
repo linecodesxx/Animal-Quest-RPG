@@ -79,8 +79,30 @@ model InventoryItem {
   id          Int        @id @default(autoincrement())
   name        String
   quantity    Int        @default(1)
+  type        ItemType   @default(EMPTY)
   character   Character  @relation(fields: [characterId], references: [id])
   characterId Int
+}
+
+// Перечисление типов предметов инвентаря.
+// FOOD — еда, восстанавливающая здоровье или дающая бонусы.
+// POTION — зелья, дающие различные эффекты.
+// SWORDS — мечи и другое холодное оружие.
+// ARMOR — броня для защиты персонажа.
+// MAGIC_SCROLL — магические свитки для заклинаний.
+// TREASURE — сокровища, ценные предметы для обмена или награды.
+// TOOL — инструменты для различных действий (например, кирка, удочка).
+// ACCESSORY — аксессуары, дающие дополнительные бонусы (кольца, амулеты и т.д.).
+enum ItemType{
+  EMPTY
+  FOOD
+  POTION
+  SWORDS
+  ARMOR
+  MAGIC_SCROLL
+  TREASURE
+  TOOL
+  ACCESSORY
 }
 
 model Battle {
