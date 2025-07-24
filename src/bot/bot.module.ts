@@ -7,6 +7,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AnimalSpawnModule } from 'src/animal-spawn.service/animal-spawn.module';
 import { InventoryModule } from 'src/inventory/inventory.module';
 import { BotHandlers } from './handlers/bot.handlers';
+import { CharacterService } from 'src/character/character.service';
 
 @Module({
   imports: [
@@ -27,7 +28,7 @@ import { BotHandlers } from './handlers/bot.handlers';
       },
     }),
   ],
-  providers: [BotService, BotUpdate, BotHandlers,],
+  providers: [BotService, BotUpdate, BotHandlers, CharacterService],
   exports: [BotService],
 })
 export class BotModule {}

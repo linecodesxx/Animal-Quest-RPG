@@ -9,7 +9,7 @@ export class InventoryService {
     { type: 'БРОНЯ', prisma_type: ItemType.ARMOR },
     { type: 'АКСЕССУАР', prisma_type: ItemType.ACCESSORY },
     { type: 'МАГИЧЕСКИЙ СВИТОК', prisma_type: ItemType.MAGIC_SCROLL },
-    { type: 'МЕЧ', prisma_type: ItemType.SWORDS },
+    { type: 'МЕЧ', prisma_type: ItemType.SWORD },
     { type: 'ЗЕЛЬЕ', prisma_type: ItemType.POTION },
     { type: 'ЦЕННОСТЬ', prisma_type: ItemType.TREASURE },
     { type: 'ИНСТРУМЕНТ', prisma_type: ItemType.TOOL },
@@ -64,5 +64,29 @@ export class InventoryService {
     return await this.prisma.inventoryItem.findFirst({
       where: { id: id, characterId: characterId },
     });
+  }
+
+  async dropItem(itemId: number, characterId: number) {
+    const item = await this.prisma.inventoryItem.findFirst({
+      where: {
+        id: itemId,
+        characterId: characterId,
+      },
+    });
+
+    if (!item) return;
+
+    if (item.quantity > 1) {
+      // 👇 Уменьшаем количество, если больше 1
+      await this.prisma.inventoryItem.update({
+        where: { id: item.id },
+        data: { quantity: item.quantity - 1 },
+      });
+    } else {
+      // 👇 Удаляем полностью, если осталась 1 штука
+      await this.prisma.inventoryItem.delete({
+        where: { id: item.id },
+      });
+    }
   }
 }

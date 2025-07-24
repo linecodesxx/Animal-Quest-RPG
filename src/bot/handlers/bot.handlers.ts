@@ -69,6 +69,11 @@ export class BotHandlers {
 
   public async handleUseItem(ctx: Context, data: string): Promise<void> {
     try {
+      if (!ctx.from) return;
+
+      const telegramId = String(ctx.from.id);
+      const character =
+        await this.userService.getUserCharacterByTelegramId(telegramId);
       // const itemId = parseInt(data.split(':')[1]);
       // await this.inventoryService.useItem(itemId); // твоя реализация
 
@@ -82,8 +87,18 @@ export class BotHandlers {
 
   public async handleDropItem(ctx: Context, data: string): Promise<void> {
     try {
-      // const itemId = parseInt(data.split(':')[1]);
-      // await this.inventoryService.dropItem(itemId); // твоя реализация
+      if (!ctx.from) return;
+
+      const telegramId = String(ctx.from.id);
+      const character =
+        await this.userService.getUserCharacterByTelegramId(telegramId);
+
+      const itemId = parseInt(data.split(':')[1]);
+      if (!character) {
+        await ctx.answerCbQuery('❌ Персонаж не найден');
+        return;
+      }
+      await this.inventoryService.dropItem(itemId, character.id);
 
       await ctx.answerCbQuery('🗑️ Выброшено!');
       await this.handleBackToInventory(ctx);

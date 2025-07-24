@@ -97,7 +97,7 @@ enum ItemType{
   EMPTY
   FOOD
   POTION
-  SWORDS
+  SWORD
   ARMOR
   MAGIC_SCROLL
   TREASURE

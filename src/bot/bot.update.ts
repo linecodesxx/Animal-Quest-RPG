@@ -5,9 +5,27 @@ import { Context } from 'telegraf';
 import { AnimalSpawnService } from 'src/animal-spawn.service/animal-spawn.service';
 import { InventoryService } from 'src/inventory/inventory.service';
 import { AdminGuard } from 'src/common/guards/admin.guard';
-import { UseGuards } from '@nestjs/common';
+import { NotImplementedException, UseGuards } from '@nestjs/common';
 import { ItemType } from 'generated/prisma';
 import { BotHandlers } from './handlers/bot.handlers';
+import { CharacterService } from 'src/character/character.service';
+
+/**
+ * Сделать настройки персонажа с инлайн кнопками
+ * без комманд через / (строка 271)
+ * 
+ * Сделать сбор животных чтобы он приносил опыт
+ * 
+ * Сделать ежедневный бонус (/bonus или кнопка)
+ * 
+ * Сделать чтобы можно было видеть профили других при реплае на них
+ * 
+ * Сделать чтобы персонажа можно было сдавтать в приют
+ * 
+ * Добавить экономику: рынок, валюту, места для заработка, кулдауны между работой
+ * 
+ * Сделать квесты
+ */
 
 @Update()
 export class BotUpdate {
@@ -17,6 +35,7 @@ export class BotUpdate {
     private userService: UserService,
     private inventoryService: InventoryService,
     private botHandlers: BotHandlers,
+    private characterService: CharacterService,
   ) {}
 
   @Start()
@@ -42,11 +61,16 @@ export class BotUpdate {
       );
       return;
     }
+    // Считаем общее количество предметов по quantity
+    const totalItems = character.inventory.reduce(
+      (sum, item) => sum + (item.quantity ?? 0),
+      0,
+    );
     const msg = `🧍 Ваш персонаж:
 👤 Имя: ${character.name}
 📈 Уровень: ${character.level}
 ❤️ Здоровье: ${character.health}
-🎒 Предметов в инвентаре: ${character.inventory.length}
+🎒 Предметов в инвентаре: ${totalItems}
 📅 Создан: ${new Date(character.createdAt).toLocaleDateString()}
   `;
 
@@ -134,7 +158,6 @@ export class BotUpdate {
     await this.botService.sendMessageToUsers(`📢 Объявление:\n${announcement}`);
   }
 
-  //#region inventory red
   @Command('inventory')
   async getInv(@Ctx() ctx: Context) {
     if (!ctx.from) return;
@@ -171,8 +194,6 @@ export class BotUpdate {
       });
     }
   }
-
-  //#endregion
 
   @UseGuards(AdminGuard)
   @Command('give')
@@ -259,6 +280,11 @@ export class BotUpdate {
     );
   }
 
+  @Command('settings')
+  async settings() {
+    throw new NotImplementedException('NotImplemeted');
+  }
+
   @On('callback_query')
   async handleCallbackQuery(@Ctx() ctx: Context) {
     let data: string | undefined;
@@ -274,8 +300,8 @@ export class BotUpdate {
       await ctx.answerCbQuery('Некорректный callback_query');
       return;
     }
-
     if (data.startsWith('catch_')) {
+      // Готово: Ловля животных
       await this.botHandlers.handleCatchAnimal(ctx, data);
       return;
     }
