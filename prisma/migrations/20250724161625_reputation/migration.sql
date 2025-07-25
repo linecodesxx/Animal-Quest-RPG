@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Character" ADD COLUMN     "rep" INTEGER NOT NULL DEFAULT 0;

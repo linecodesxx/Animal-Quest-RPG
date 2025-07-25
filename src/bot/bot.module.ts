@@ -8,10 +8,13 @@ import { AnimalSpawnModule } from 'src/animal-spawn.service/animal-spawn.module'
 import { InventoryModule } from 'src/inventory/inventory.module';
 import { BotHandlers } from './handlers/bot.handlers';
 import { CharacterService } from 'src/character/character.service';
+import { FoodService } from 'src/food.service/food.service';
+import { ArmorService } from 'src/armor.service/armor.service';
+import { BuffService } from 'src/buff.service/buff.service';
+import { WeaponService } from 'src/weapon.service/weapon.service';
 
 @Module({
   imports: [
-   
     ConfigModule,
     AnimalSpawnModule,
     UserModule,
@@ -28,7 +31,16 @@ import { CharacterService } from 'src/character/character.service';
       },
     }),
   ],
-  providers: [BotService, BotUpdate, BotHandlers, CharacterService],
+  providers: [
+    BotService,
+    BotUpdate,
+    BotHandlers,
+    CharacterService,
+    FoodService,
+    ArmorService,
+    BuffService,
+    WeaponService
+  ],
   exports: [BotService],
 })
 export class BotModule {}

@@ -1,0 +1,13 @@
+-- CreateEnum
+CREATE TYPE "Armor" AS ENUM ('BRONZE_ARMOR', 'SILVER_ARMOR', 'KITTY_ARMOR', 'CUTE_ARMOR');
+
+-- CreateEnum
+CREATE TYPE "Sword" AS ENUM ('SMALL_SWORD', 'KITTY_SWORD', 'BRONZE_SWORD', 'CUTE_SWORD');
+
+-- AlterEnum
+ALTER TYPE "Class" ADD VALUE 'HUNTER';
+
+-- AlterTable
+ALTER TABLE "Character" ADD COLUMN     "armor" "Armor",
+ADD COLUMN     "cash" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "sword" "Sword";

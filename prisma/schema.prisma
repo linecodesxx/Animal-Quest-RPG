@@ -14,11 +14,45 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role{
+enum Role {
   USER
   ADMIN
 }
 
+enum Class {
+  WARRIOR
+  MAGE
+  ARCHER
+  HUNTER
+}
+
+enum WeaponType {
+  SWORD
+  AXE
+  BOW
+  MAGIC_WAND
+  DAGGER
+}
+
+enum ArmorType {
+  LIGHT
+  MEDIUM
+  HEAVY
+  MAGICAL
+}
+
+
+enum ItemType {
+  EMPTY
+  FOOD
+  POTION
+  SWORD
+  ARMOR
+  MAGIC_SCROLL
+  TREASURE
+  TOOL
+  ACCESSORY
+}
 
 // User (Пользователь)
 model User {
@@ -35,17 +69,94 @@ model User {
 model Character {
   id         Int           @id @default(autoincrement())
   name       String
+  class      Class?
   level      Int           @default(1)
   exp        Int           @default(0)
   health     Int           @default(100)
+  maxHealth  Int           @default(100)
+  hungry     Int           @default(10)
+  maxHungry  Int           @default(10)
+  rep        Int           @default(0)
+  cash       Int           @default(0)
   user       User          @relation(fields: [userId], references: [id])
   userId     Int
+  armor      ArmorType?          
+  weapon     WeaponType?
   inventory  InventoryItem[]
   quests     QuestProgress[]
   battles    Battle[]      @relation("CharacterBattles")
   createdAt  DateTime      @default(now())
 
   AnimalSpawn AnimalSpawn[]
+
+  CharacterClass CharacterClass[]
+}
+
+model CharacterClass {
+  id        Int     @id @default(autoincrement())
+  name      String  @unique
+  attackMod Float   @default(1.0) // множитель урона
+  defenseMod Float  @default(1.0)
+  skills    String? // описание пассивок или спецумений
+
+  characters Character[]
+
+  Weapon Weapon[]
+
+  Armor Armor[]
+}
+
+model Weapon {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  attack    Int
+  classReq  CharacterClass? @relation(fields: [classReqId], references: [id])
+  classReqId Int?
+  type       WeaponType?
+  buffs     Buff[]   @relation("WeaponBuffs")
+  rarity    String?
+  cuteFactor Int?
+
+  InventoryItem InventoryItem[]
+}
+
+model Armor {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  defense   Int
+  classReq  CharacterClass? @relation(fields: [classReqId], references: [id])
+  classReqId Int?
+  type       ArmorType?
+  buffs     Buff[]   @relation("ArmorBuffs")
+  rarity    String?
+  cuteFactor Int?
+
+  InventoryItem InventoryItem[]
+}
+
+enum BuffType {
+  ATTACK_UP
+  DEFENSE_UP
+  HEALTH_REGEN
+  SPEED_UP
+  HUNGER_REDUCE
+  CRIT_CHANCE
+  CUTENESS_BOOST
+  FIRE_RESISTANCE
+  MAGIC_POWER
+}
+
+model Buff {
+  id        Int      @id @default(autoincrement())
+  type      BuffType
+  value     Int
+  duration  Int?     // ходы/секунды, если временно
+  description String?
+
+  weapons   Weapon[] @relation("WeaponBuffs")
+  armors    Armor[]  @relation("ArmorBuffs")
+
+  Food Food[] @relation("FoodBuffs")
 }
 
 model Quest {
@@ -76,34 +187,39 @@ enum QuestStatus {
 }
 
 model InventoryItem {
-  id          Int        @id @default(autoincrement())
-  name        String
-  quantity    Int        @default(1)
-  type        ItemType   @default(EMPTY)
-  character   Character  @relation(fields: [characterId], references: [id])
-  characterId Int
+  id           Int         @id @default(autoincrement())
+  quantity     Int         @default(1)
+  type         ItemType    @default(EMPTY)
+  class        Class?
+  character    Character   @relation(fields: [characterId], references: [id])
+  characterId  Int
+
+  // связи с конкретными предметами
+  weapon       Weapon?     @relation(fields: [weaponId], references: [id])
+  weaponId     Int?
+
+  armor        Armor?      @relation(fields: [armorId], references: [id])
+  armorId      Int?
+
+  food         Food?       @relation(fields: [foodId], references: [id])
+  foodId       Int?
+
+  // резервное имя — только если предмет не связан напрямую
+  name         String?
 }
 
-// Перечисление типов предметов инвентаря.
-// FOOD — еда, восстанавливающая здоровье или дающая бонусы.
-// POTION — зелья, дающие различные эффекты.
-// SWORDS — мечи и другое холодное оружие.
-// ARMOR — броня для защиты персонажа.
-// MAGIC_SCROLL — магические свитки для заклинаний.
-// TREASURE — сокровища, ценные предметы для обмена или награды.
-// TOOL — инструменты для различных действий (например, кирка, удочка).
-// ACCESSORY — аксессуары, дающие дополнительные бонусы (кольца, амулеты и т.д.).
-enum ItemType{
-  EMPTY
-  FOOD
-  POTION
-  SWORD
-  ARMOR
-  MAGIC_SCROLL
-  TREASURE
-  TOOL
-  ACCESSORY
+
+model Food {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  healValue   Int      @default(0)
+  hungryValue Int      @default(0)
+  buffs       Buff[]   @relation("FoodBuffs")
+
+  InventoryItem InventoryItem[]
 }
+
 
 model Battle {
   id             Int        @id @default(autoincrement())
@@ -121,7 +237,6 @@ enum BattleResult {
   LOSE
   ESCAPED
 }
-
 
 model Animal {
   id        Int       @id @default(autoincrement())

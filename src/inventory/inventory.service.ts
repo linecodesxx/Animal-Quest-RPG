@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ItemType } from 'generated/prisma';
+import { CharacterService } from 'src/character/character.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
@@ -16,7 +17,10 @@ export class InventoryService {
     { type: 'ПУСТОТА', prisma_type: ItemType.EMPTY },
   ];
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private character: CharacterService,
+  ) {}
 
   async addNewItemToInventory(
     name: string,
@@ -63,16 +67,16 @@ export class InventoryService {
   async getItemById(id: number, characterId: number) {
     return await this.prisma.inventoryItem.findFirst({
       where: { id: id, characterId: characterId },
+      include: {
+        food: true,
+        weapon: true,
+        armor: true,
+      },
     });
   }
 
   async dropItem(itemId: number, characterId: number) {
-    const item = await this.prisma.inventoryItem.findFirst({
-      where: {
-        id: itemId,
-        characterId: characterId,
-      },
-    });
+    const item = await this.getItemById(itemId, characterId);
 
     if (!item) return;
 
@@ -87,6 +91,39 @@ export class InventoryService {
       await this.prisma.inventoryItem.delete({
         where: { id: item.id },
       });
+    }
+  }
+
+  async useItem(itemId: number, characterId: number) {
+    const item = await this.getItemById(itemId, characterId);
+    const character = await this.prisma.character.findFirst({
+      where: { id: characterId },
+    });
+
+    if (!item) return;
+
+    if (item.type === ItemType.FOOD) {
+      const foodData = item.food;
+      if (!foodData) return; // страховка
+
+      if (character && character.hungry < 10) {
+        await this.character.hungryUp(character.id, foodData.hungryValue);
+        await this.character.heal(character.id, foodData.healValue);
+      }
+
+      if (item.quantity > 1) {
+        await this.prisma.inventoryItem.update({
+          where: { id: item.id },
+          data: { quantity: { decrement: 1 } },
+        });
+      } else {
+        await this.prisma.inventoryItem.delete({
+          where: { id: item.id },
+        });
+      }
+    } else if (item.type === ItemType.POTION) {
+      // Зелья
+      return;
     }
   }
 }
